@@ -1,6 +1,6 @@
 module github.com/medasset/medasset
 
-go 1.24.6
+go 1.24
 
 require (
 	github.com/gin-gonic/gin v1.9.1
