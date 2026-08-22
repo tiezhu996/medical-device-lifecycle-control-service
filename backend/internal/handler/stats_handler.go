@@ -2,6 +2,7 @@ package handler
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/medasset/medasset/internal/dto"
 	"github.com/medasset/medasset/internal/service"
 	"github.com/medasset/medasset/internal/util"
 )
@@ -22,5 +23,9 @@ func (h *StatsHandler) Overview(c *gin.Context) {
 		c.Error(err)
 		return
 	}
-	util.OK(c, data)
+	util.OK(c, prepareStatsResponse(data))
+}
+
+func prepareStatsResponse(data *dto.OverviewResp) *dto.OverviewResp {
+	return data
 }

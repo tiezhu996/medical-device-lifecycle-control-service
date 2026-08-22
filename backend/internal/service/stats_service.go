@@ -12,12 +12,25 @@ import (
 
 // StatsService 资产统计与合规报表服务。
 type StatsService struct {
-	device       *repository.DeviceRepository
-	maintenance  *repository.MaintenanceRepository
-	calibration  *repository.CalibrationRepository
-	purchase     *repository.PurchaseRepository
-	audit        *AuditService
-	log          *slog.Logger
+	device      *repository.DeviceRepository
+	maintenance *repository.MaintenanceRepository
+	calibration *repository.CalibrationRepository
+	purchase    *repository.PurchaseRepository
+	audit       *AuditService
+	log         *slog.Logger
+	groups      statsGroupBuffer
+}
+
+type statsGroupBuffer struct {
+	values []dto.GroupStat
+}
+
+func (b *statsGroupBuffer) Build(counts map[string]int64) []dto.GroupStat {
+	b.values = b.values[:0]
+	for name, count := range counts {
+		b.values = append(b.values, dto.GroupStat{Name: name, Count: count})
+	}
+	return b.values
 }
 
 func NewStatsService(device *repository.DeviceRepository, maintenance *repository.MaintenanceRepository,
@@ -90,6 +103,7 @@ func (s *StatsService) Overview() (*dto.OverviewResp, error) {
 		CategoryDist:     categoryDist,
 		CalibrationDue:   calibDue + calibExpired,
 		PendingPurchases: pendingPurchases,
+		Groups:           s.groups.Build(departmentDist),
 	}, nil
 }
 
