@@ -88,9 +88,11 @@ func (r *PurchaseRepository) UpdateStatusTx(tx *gorm.DB, id uint, status string)
 	return nil
 }
 
+// MarkAcceptedTx 条件化写回验收结果：仅当行仍处于「待验收（delivered）」且尚未绑定设备时才落库，
+// 以此抵御并发/重复验收与过期状态写入（乐观并发控制，0 行受影响即视为状态冲突）。
 func (r *PurchaseRepository) MarkAcceptedTx(tx *gorm.DB, p *model.PurchaseRequest) error {
 	res := tx.Model(&model.PurchaseRequest{}).
-		Where("id = ?", p.ID).
+		Where("id = ? AND device_id = 0 AND status = ?", p.ID, "delivered").
 		Updates(map[string]any{
 			"status":            p.Status,
 			"acceptance_person": p.AcceptancePerson,

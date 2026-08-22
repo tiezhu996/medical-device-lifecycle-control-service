@@ -42,5 +42,9 @@ func (r *AcceptReq) Validate() error {
 	if strings.TrimSpace(r.AssetCode) == "" {
 		return errors.New("asset code is required")
 	}
+	// 验收必须留存凭证：医疗器械登记号与产品合格证至少提供其一。
+	if strings.TrimSpace(r.CertificateNo) == "" && strings.TrimSpace(r.RegistrationNo) == "" {
+		return errors.New("acceptance evidence (certificate_no or registration_no) is required")
+	}
 	return nil
 }

@@ -242,7 +242,6 @@ func (s *PurchaseService) Accept(id uint, req *dto.AcceptReq, operator string) (
 		return nil, util.NewAppError(http.StatusBadRequest, "验收参数不完整", err)
 	}
 	var device *model.Device
-	var purchase *model.PurchaseRequest
 	requestNo := ""
 	err := s.repo.DB().Transaction(func(tx *gorm.DB) error {
 		p, err := s.repo.FindByIDForUpdate(tx, id)
@@ -293,13 +292,14 @@ func (s *PurchaseService) Accept(id uint, req *dto.AcceptReq, operator string) (
 			return err
 		}
 		p.ApplyAcceptance(req.AcceptancePerson, acceptanceDate, req.PartsList, req.CertificateNo, req.RegistrationNo, device.ID)
-		purchase = p
+		// 条件化写回必须在同一事务内：采购更新失败（状态冲突/触发器）时回滚已创建的设备，
+		// 避免「设备已生成、采购未验收」的脏数据，亦杜绝重复验收多生一台设备。
+		if err := s.repo.MarkAcceptedTx(tx, p); err != nil {
+			return err
+		}
 		return nil
 	})
 	if err != nil {
-		return nil, s.wrapStatus(err)
-	}
-	if err := s.repo.MarkAcceptedTx(s.repo.DB(), purchase); err != nil {
 		return nil, s.wrapStatus(err)
 	}
 	s.log.Info(fmt.Sprintf(constants.LogPurchaseAccepted, requestNo, device.ID, device.AssetCode, device.Barcode))

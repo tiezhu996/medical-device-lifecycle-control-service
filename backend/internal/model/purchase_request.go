@@ -34,8 +34,13 @@ type PurchaseRequest struct {
 	UpdatedAt          time.Time  `json:"updated_at"`
 }
 
+// CanAccept 验收前置校验：仅「已到货待验收」且尚未生成设备的申请可验收。
+// 必须先到货登记（delivered），且禁止重复验收（DeviceID 已绑定即代表已验收过）。
 func (p *PurchaseRequest) CanAccept() bool {
-	return p.Status != "rejected" && p.DeviceID == 0
+	if p.DeviceID != 0 {
+		return false
+	}
+	return p.Status == "delivered" && p.DeliveredAt != nil
 }
 
 func (p *PurchaseRequest) ApplyAcceptance(person string, date *time.Time, parts, certificate, registration string, deviceID uint) {
