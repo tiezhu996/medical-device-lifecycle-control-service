@@ -34,7 +34,11 @@ func (r *MaintenanceRepository) CreateBatch(tx *gorm.DB, records []model.Mainten
 	return tx.Create(&records).Error
 }
 
+// finishPlanBatch 在工作函数成功时提交事务，失败时回滚，保留原始失败原因。
 func finishPlanBatch(tx *gorm.DB, workErr error) error {
+	if workErr != nil {
+		return errors.Join(workErr, tx.Rollback().Error)
+	}
 	return tx.Commit().Error
 }
 

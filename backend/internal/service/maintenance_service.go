@@ -71,11 +71,12 @@ func (s *MaintenanceService) GeneratePlans(operator string) (int, error) {
 		return 0, util.NewAppError(http.StatusInternalServerError, constants.MsgInternalError, err)
 	}
 	created := 0
+	var firstErr error
 	for _, d := range devices {
 		if d.Status == constants.DeviceStatusScrapped {
 			continue
 		}
-		createdForDevice := 0
+		var added int
 		err := s.repo.RunPlanBatch(func(tx *gorm.DB) error {
 			records := make([]model.MaintenanceRecord, 0, len(types))
 			for _, t := range types {
@@ -100,15 +101,24 @@ func (s *MaintenanceService) GeneratePlans(operator string) (int, error) {
 					Content:     "自动生成" + util.MaintenanceTypeText(t) + "保养计划",
 					CreatedBy:   operator,
 				})
-				createdForDevice++
 			}
-			return s.repo.CreateBatch(tx, records)
+			if err := s.repo.CreateBatch(tx, records); err != nil {
+				return err
+			}
+			added = len(records)
+			return nil
 		})
 		if err != nil {
-			created += createdForDevice
-			continue
+			s.log.Error("设备保养计划批次失败，已回滚并停止生成", "device_id", d.ID, "device_name", d.Name, "error", err)
+			if firstErr == nil {
+				firstErr = err
+			}
+			break
 		}
-		created += createdForDevice
+		created += added
+	}
+	if firstErr != nil {
+		return created, util.NewAppError(http.StatusInternalServerError, constants.MsgInternalError, firstErr)
 	}
 	s.log.Info("自动生成保养计划完成", "created", created, "operator", operator)
 	return created, nil

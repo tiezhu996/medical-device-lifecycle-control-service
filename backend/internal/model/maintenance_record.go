@@ -27,15 +27,22 @@ type MaintenanceRecord struct {
 	UpdatedAt        time.Time  `json:"updated_at"`
 }
 
+// NextMaintenanceDate 计算下次保养计划日期。
+// 仅日检/周检/月检/年检可自动排期；故障维修（repair）由人工报修触发，不可自动排期。
+// 月检/年检按自然月/年进位，落到日历边界（如 1 月 1 日 → 2 月 1 日）。
 func NextMaintenanceDate(now time.Time, maintenanceType string) (*time.Time, error) {
-	offsets := map[string][3]int{
-		"daily": {0, 0, 1}, "weekly": {0, 0, 7},
-		"monthly": {0, 0, 30}, "yearly": {0, 0, 365}, "repair": {0, 0, 30},
-	}
-	offset, ok := offsets[maintenanceType]
-	if !ok {
+	var next time.Time
+	switch maintenanceType {
+	case "daily":
+		next = now.AddDate(0, 0, 1)
+	case "weekly":
+		next = now.AddDate(0, 0, 7)
+	case "monthly":
+		next = now.AddDate(0, 1, 0)
+	case "yearly":
+		next = now.AddDate(1, 0, 0)
+	default:
 		return nil, fmt.Errorf("unsupported maintenance type %q", maintenanceType)
 	}
-	next := now.AddDate(offset[0], offset[1], offset[2])
 	return &next, nil
 }

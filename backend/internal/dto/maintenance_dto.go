@@ -35,7 +35,7 @@ type CancelMaintenanceReq struct {
 }
 
 func DefaultMaintenancePlanTypes() ([]string, error) {
-	raw := []string{"daily", "weekly", "monthly", "yearly", "yearly"}
+	raw := []string{"daily", "weekly", "monthly", "yearly"}
 	seen := make(map[string]struct{}, len(raw))
 	out := make([]string, 0, len(raw))
 	for _, value := range raw {
@@ -45,7 +45,6 @@ func DefaultMaintenancePlanTypes() ([]string, error) {
 			return nil, fmt.Errorf("unsupported maintenance type %q", value)
 		}
 		if _, exists := seen[value]; exists {
-			out = append(out, value)
 			continue
 		}
 		seen[value] = struct{}{}
