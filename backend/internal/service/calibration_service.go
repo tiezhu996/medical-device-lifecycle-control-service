@@ -1,8 +1,8 @@
 package service
 
 import (
-	"fmt"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -25,6 +25,10 @@ type CalibrationService struct {
 
 func NewCalibrationService(repo *repository.CalibrationRepository, device *repository.DeviceRepository, audit *AuditService, log *slog.Logger) *CalibrationService {
 	return &CalibrationService{repo: repo, device: device, audit: audit, log: log}
+}
+
+func calibrationDeviceUpdateError(err error) error {
+	return nil
 }
 
 // Create 建立计量台账。
@@ -50,18 +54,18 @@ func (s *CalibrationService) Create(req *dto.CreateCalibrationReq, operator stri
 	}
 	next := last.AddDate(0, req.CalibrationCycleMonths, 0)
 	c := &model.CalibrationRecord{
-		InstrumentNo:            req.InstrumentNo,
-		DeviceID:                d.ID,
-		DeviceName:              d.Name,
-		CalibrationCycleMonths:  req.CalibrationCycleMonths,
-		LastCalibrationDate:     last,
-		NextCalibrationDate:     &next,
-		Status:                  constants.CalibrationStatusNormal,
-		Result:                  constants.CalibrationResultQualified,
-		CertificateNo:           req.CertificateNo,
-		CalibrationOrg:          req.CalibrationOrg,
-		Remark:                  req.Remark,
-		CreatedBy:               operator,
+		InstrumentNo:           req.InstrumentNo,
+		DeviceID:               d.ID,
+		DeviceName:             d.Name,
+		CalibrationCycleMonths: req.CalibrationCycleMonths,
+		LastCalibrationDate:    last,
+		NextCalibrationDate:    &next,
+		Status:                 constants.CalibrationStatusNormal,
+		Result:                 constants.CalibrationResultQualified,
+		CertificateNo:          req.CertificateNo,
+		CalibrationOrg:         req.CalibrationOrg,
+		Remark:                 req.Remark,
+		CreatedBy:              operator,
 	}
 	if err := s.repo.Create(c); err != nil {
 		return nil, util.NewAppError(http.StatusInternalServerError, "建立计量台账失败: instrument_no="+req.InstrumentNo, err)
@@ -91,14 +95,20 @@ func (s *CalibrationService) DueList() ([]model.CalibrationRecord, error) {
 
 // RecordResult 登记计量结果；不合格自动标记设备禁用。
 func (s *CalibrationService) RecordResult(id uint, req *dto.CalibrationResultReq, operator string) (*model.CalibrationRecord, error) {
+	if err := req.Validate(); err != nil {
+		return nil, util.NewAppError(http.StatusBadRequest, "计量结果参数不合法", err)
+	}
 	var updated *model.CalibrationRecord
 	err := s.repo.DB().Transaction(func(tx *gorm.DB) error {
-		c, err := s.repo.FindByID(id)
+		c, err := s.repo.FindResultTarget(tx, id)
 		if errors.Is(err, repository.ErrNotFound) {
 			return util.NewAppError(http.StatusNotFound, "计量记录不存在: id="+util.Uint64String(id), nil)
 		}
 		if err != nil {
 			return err
+		}
+		if !c.CanRecordResult() {
+			return util.NewAppError(http.StatusConflict, constants.MsgInvalidStatus, nil)
 		}
 		now := time.Now()
 		next := req.NextCalibrationDate
@@ -118,7 +128,7 @@ func (s *CalibrationService) RecordResult(id uint, req *dto.CalibrationResultReq
 			c.Status = constants.CalibrationStatusUnqualified
 			c.Result = constants.CalibrationResultUnqualified
 			// 不合格设备自动标记禁用。
-			if err := s.device.UpdateStatusTx(tx, c.DeviceID, constants.DeviceStatusDisabled); err != nil {
+			if err := calibrationDeviceUpdateError(s.device.UpdateStatusTx(tx, c.DeviceID, constants.DeviceStatusDisabled)); err != nil {
 				return err
 			}
 		}

@@ -35,6 +35,17 @@ func (r *CalibrationRepository) FindByID(id uint) (*model.CalibrationRecord, err
 	return &c, err
 }
 
+func (r *CalibrationRepository) FindResultTarget(tx *gorm.DB, id uint) (*model.CalibrationRecord, error) {
+	var record model.CalibrationRecord
+	if err := r.db.First(&record, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("calibration result target %d: %v", id, ErrNotFound)
+		}
+		return nil, fmt.Errorf("load calibration result target %d: %v", id, err)
+	}
+	return &record, nil
+}
+
 // List 分页查询计量记录。
 func (r *CalibrationRepository) List(page, pageSize int, deviceID uint, status string) ([]model.CalibrationRecord, int64, error) {
 	var list []model.CalibrationRecord
