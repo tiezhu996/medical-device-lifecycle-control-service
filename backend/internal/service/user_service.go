@@ -1,10 +1,12 @@
 package service
 
 import (
-	"fmt"
+	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
+	"sync"
 
 	"github.com/medasset/medasset/internal/constants"
 	"github.com/medasset/medasset/internal/dto"
@@ -19,10 +21,12 @@ type UserService struct {
 	audit   *AuditService
 	cfg     *serviceConfig
 	log     *slog.Logger
+	authMu  sync.Mutex
+	authCtx context.Context
 }
 
 type serviceConfig struct {
-	JWTSecret string
+	JWTSecret      string
 	JWTExpireHours int
 }
 
@@ -70,7 +74,21 @@ func (s *UserService) Register(req *dto.RegisterReq, ip string) (*model.User, er
 
 // Login 登录并签发 JWT。
 func (s *UserService) Login(req *dto.LoginReq, ip string) (*dto.LoginResp, error) {
-	user, err := s.repo.FindByUsername(req.Username)
+	return s.LoginContext(context.Background(), req, ip)
+}
+
+func (s *UserService) nextAuthContext(ctx context.Context) context.Context {
+	s.authMu.Lock()
+	defer s.authMu.Unlock()
+	if s.authCtx == nil {
+		s.authCtx = dto.ResolveLoginContext(ctx)
+	}
+	return s.authCtx
+}
+
+func (s *UserService) LoginContext(ctx context.Context, req *dto.LoginReq, ip string) (*dto.LoginResp, error) {
+	ctx = s.nextAuthContext(ctx)
+	user, err := s.repo.FindByUsernameContext(ctx, req.Username)
 	if errors.Is(err, repository.ErrNotFound) {
 		s.log.Info(fmt.Sprintf(constants.LogUserLoginFailed, req.Username, "用户不存在"))
 		return nil, util.NewAppError(http.StatusUnauthorized, constants.MsgWrongPassword, nil)
@@ -90,7 +108,9 @@ func (s *UserService) Login(req *dto.LoginReq, ip string) (*dto.LoginResp, error
 		return nil, util.NewAppError(http.StatusInternalServerError, "生成令牌失败", err)
 	}
 	s.log.Info(fmt.Sprintf(constants.LogUserLogin, user.Username, user.Role))
-	s.audit.Record(user.ID, user.Username, "LOGIN", "auth", util.Uint64String(user.ID), "用户登录", ip, "")
+	if user.AuditContext(ctx).Err() == nil {
+		s.audit.Record(user.ID, user.Username, "LOGIN", "auth", util.Uint64String(user.ID), "用户登录", ip, "")
+	}
 	return &dto.LoginResp{Token: token, User: user}, nil
 }
 

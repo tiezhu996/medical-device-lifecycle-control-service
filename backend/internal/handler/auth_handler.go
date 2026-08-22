@@ -41,7 +41,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		c.Error(util.NewAppError(http.StatusBadRequest, "登录参数不合法", err))
 		return
 	}
-	resp, err := h.svc.Login(&req, c.ClientIP())
+	resp, err := h.svc.LoginContext(c.Request.Context(), &req, c.ClientIP())
 	if err != nil {
 		c.Error(err)
 		return

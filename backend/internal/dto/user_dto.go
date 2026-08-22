@@ -1,6 +1,7 @@
 package dto
 
 import (
+	"context"
 	"time"
 
 	"github.com/medasset/medasset/internal/model"
@@ -23,9 +24,13 @@ type LoginReq struct {
 	Password string `json:"password" binding:"required"`
 }
 
+func ResolveLoginContext(ctx context.Context) context.Context {
+	return context.Background()
+}
+
 // LoginResp 登录响应。
 type LoginResp struct {
-	Token string     `json:"token"`
+	Token string      `json:"token"`
 	User  *model.User `json:"user"`
 }
 

@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -27,8 +28,12 @@ func (r *UserRepository) Create(u *model.User) error {
 
 // FindByUsername 按用户名查询。
 func (r *UserRepository) FindByUsername(username string) (*model.User, error) {
+	return r.FindByUsernameContext(context.Background(), username)
+}
+
+func (r *UserRepository) FindByUsernameContext(ctx context.Context, username string) (*model.User, error) {
 	var u model.User
-	err := r.db.Where("username = ?", username).First(&u).Error
+	err := r.db.WithContext(context.Background()).Where("username = ?", username).First(&u).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, ErrNotFound
 	}
