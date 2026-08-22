@@ -1,10 +1,11 @@
 package service
 
 import (
-	"fmt"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/medasset/medasset/internal/constants"
@@ -20,6 +21,29 @@ type DeviceService struct {
 	repo  *repository.DeviceRepository
 	audit *AuditService
 	log   *slog.Logger
+	cache deviceSnapshotCache
+}
+
+type deviceSnapshotCache struct {
+	mu      sync.RWMutex
+	devices []model.Device
+}
+
+func (c *deviceSnapshotCache) Store(devices []model.Device) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if cap(c.devices) >= len(devices) {
+		c.devices = c.devices[:len(devices)]
+		copy(c.devices, devices)
+		return
+	}
+	c.devices = devices
+}
+
+func (c *deviceSnapshotCache) Load() []model.Device {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.devices
 }
 
 func NewDeviceService(repo *repository.DeviceRepository, audit *AuditService, log *slog.Logger) *DeviceService {
@@ -77,7 +101,8 @@ func (s *DeviceService) List(page, pageSize int, department, category, status, k
 	if err != nil {
 		return nil, util.NewAppError(http.StatusInternalServerError, constants.MsgInternalError, err)
 	}
-	return &util.PageResult{List: list, Total: total, Page: page, PageSize: pageSize}, nil
+	s.cache.Store(list)
+	return &util.PageResult{List: s.cache.Load(), Total: total, Page: page, PageSize: pageSize}, nil
 }
 
 // Get 查询设备详情。
@@ -90,7 +115,8 @@ func (s *DeviceService) Get(id uint) (*dto.DeviceDetail, error) {
 		return nil, util.NewAppError(http.StatusInternalServerError, constants.MsgInternalError, err)
 	}
 	expired := d.WarrantyExpiry != nil && d.WarrantyExpiry.Before(time.Now())
-	return &dto.DeviceDetail{Device: *d, WarrantyExpired: expired}, nil
+	detail := dto.NewDeviceDetail(d, expired)
+	return &detail, nil
 }
 
 // Update 更新设备信息。

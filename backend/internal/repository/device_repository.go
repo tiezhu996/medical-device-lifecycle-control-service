@@ -3,11 +3,17 @@ package repository
 import (
 	"errors"
 	"fmt"
+	"sort"
 
 	"github.com/medasset/medasset/internal/model"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
+
+func SnapshotDeviceList(devices []model.Device) []model.Device {
+	sort.SliceStable(devices, func(i, j int) bool { return devices[i].ID > devices[j].ID })
+	return devices
+}
 
 // DeviceRepository 设备台账仓储。
 type DeviceRepository struct {
@@ -116,7 +122,7 @@ func (r *DeviceRepository) GroupCount(field string) (map[string]int64, error) {
 		Count    int64
 	}
 	var rows []row
-	err := r.db.Model(&model.Device{}).Select(field+" AS group_key, COUNT(*) AS count").Group(field).Scan(&rows).Error
+	err := r.db.Model(&model.Device{}).Select(field + " AS group_key, COUNT(*) AS count").Group(field).Scan(&rows).Error
 	if err != nil {
 		return nil, err
 	}
