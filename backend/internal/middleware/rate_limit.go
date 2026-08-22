@@ -16,7 +16,7 @@ import (
 // RateLimit 限流中间件：优先使用 Redis 滑动窗口，Redis 不可用时降级为内存限流。
 func RateLimit(rdb *redis.Client, limitPerSecond int) gin.HandlerFunc {
 	mem := &memLimiter{
-		mu:    sync.Mutex{},
+		mu:      sync.Mutex{},
 		buckets: make(map[string]*bucket),
 	}
 	return func(c *gin.Context) {
@@ -48,6 +48,13 @@ func redisAllow(ctx context.Context, rdb *redis.Client, key string, limit int) b
 		return true // Redis 异常时放行，避免阻断业务。
 	}
 	return cmd.Val() <= int64(limit)
+}
+
+func waitForRateLimit(ctx context.Context, delay time.Duration) error {
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	<-timer.C
+	return nil
 }
 
 type bucket struct {

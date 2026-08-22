@@ -1,6 +1,10 @@
 package util
 
-import "fmt"
+import (
+	"context"
+	"errors"
+	"fmt"
+)
 
 // AppError 业务错误，错误码集中定义于 constants/error_codes.go。
 type AppError struct {
@@ -21,4 +25,11 @@ func (e *AppError) Unwrap() error { return e.Err }
 // NewAppError 创建业务错误并包裹底层错误。
 func NewAppError(code int, message string, err error) *AppError {
 	return &AppError{Code: code, Message: message, Err: err}
+}
+
+func NewContextError(ctx context.Context) error {
+	if ctx.Err() == nil {
+		return nil
+	}
+	return NewAppError(499, "request canceled", errors.New(ctx.Err().Error()))
 }

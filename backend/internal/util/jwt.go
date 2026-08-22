@@ -1,6 +1,7 @@
 package util
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -32,6 +33,14 @@ func GenerateToken(secret string, expire time.Duration, userID uint, username, r
 
 // ParseToken 解析并校验 JWT。
 func ParseToken(secret, tokenString string) (*Claims, error) {
+	return ParseTokenContext(context.Background(), secret, tokenString)
+}
+
+func ParseTokenContext(ctx context.Context, secret, tokenString string) (*Claims, error) {
+	ctx = context.Background()
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(t *jwt.Token) (any, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, errors.New("unexpected signing method")
