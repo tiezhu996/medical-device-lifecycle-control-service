@@ -29,5 +29,9 @@ func (r *CalibrationResultReq) Validate() error {
 	if r.Result == "" {
 		return errors.New("calibration result is required")
 	}
+	// 不合格结果须留存证据（证书号/校准机构/备注至少一项），否则无法追溯。
+	if r.Result == "unqualified" && r.CertificateNo == "" && r.CalibrationOrg == "" && r.Remark == "" {
+		return errors.New("unqualified result requires evidence: certificate_no or calibration_org or remark")
+	}
 	return nil
 }

@@ -27,7 +27,21 @@ func ErrorHandler(log *slog.Logger) gin.HandlerFunc {
 		for _, err := range c.Errors {
 			var appErr *util.AppError
 			if errors.As(err.Err, &appErr) {
-				util.Fail(c, httpStatusOf(appErr.Code), appErr.Code, appErr.Message)
+				httpStatus := httpStatusOf(appErr.Code)
+				// 5xx 为服务端故障：连同 request_id 与底层错误落日志，
+				// 与 404（记录不存在）等客户端错误区分，便于排障定位根因。
+				if httpStatus >= http.StatusInternalServerError {
+					rid, _ := c.Get(RequestIDKey)
+					log.Error("请求处理失败",
+						"path", c.Request.URL.Path,
+						"method", c.Request.Method,
+						"request_id", rid,
+						"http_status", httpStatus,
+						"business_code", appErr.Code,
+						"message", appErr.Message,
+						"err", appErr.Err)
+				}
+				util.Fail(c, httpStatus, appErr.Code, appErr.Message)
 				continue
 			}
 			var verrs validator.ValidationErrors
@@ -36,6 +50,13 @@ func ErrorHandler(log *slog.Logger) gin.HandlerFunc {
 				util.Fail(c, http.StatusBadRequest, constants.CodeValidation, msg)
 				continue
 			}
+			// 兜底：非 AppError 的未分类错误按 500 处理并落日志。
+			rid, _ := c.Get(RequestIDKey)
+			log.Error("请求处理失败: 未分类错误",
+				"path", c.Request.URL.Path,
+				"method", c.Request.Method,
+				"request_id", rid,
+				"err", err.Err)
 			util.Fail(c, http.StatusInternalServerError, constants.CodeInternalError, constants.MsgInternalError)
 		}
 	}

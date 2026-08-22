@@ -21,6 +21,9 @@ type CalibrationRecord struct {
 	UpdatedAt              time.Time  `json:"updated_at"`
 }
 
+// CanRecordResult 判断当前状态是否允许登记新的计量结果。
+// scrapped 与 unqualified 为终态：前者设备已报废，后者设备已据此禁用，
+// 再次登记会让状态机倒退并掩盖既有不合格结论。
 func (c *CalibrationRecord) CanRecordResult() bool {
-	return c.Status != "scrapped"
+	return c.Status != "scrapped" && c.Status != "unqualified"
 }

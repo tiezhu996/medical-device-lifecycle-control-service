@@ -37,11 +37,12 @@ func (r *CalibrationRepository) FindByID(id uint) (*model.CalibrationRecord, err
 
 func (r *CalibrationRepository) FindResultTarget(tx *gorm.DB, id uint) (*model.CalibrationRecord, error) {
 	var record model.CalibrationRecord
-	if err := r.db.First(&record, id).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("calibration result target %d: %v", id, ErrNotFound)
-		}
-		return nil, fmt.Errorf("load calibration result target %d: %v", id, err)
+	err := r.db.First(&record, id).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, fmt.Errorf("calibration result target %d: %w", id, ErrNotFound)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("load calibration result target %d: %w", id, err)
 	}
 	return &record, nil
 }

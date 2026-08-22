@@ -28,7 +28,7 @@ func NewCalibrationService(repo *repository.CalibrationRepository, device *repos
 }
 
 func calibrationDeviceUpdateError(err error) error {
-	return nil
+	return err
 }
 
 // Create 建立计量台账。
