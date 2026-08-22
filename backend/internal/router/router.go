@@ -29,8 +29,10 @@ func New(deps Deps) *gin.Engine {
 		gin.SetMode(gin.ReleaseMode)
 	}
 	r := gin.New()
-	r.Use(middleware.CORS())
+	// RequestID 必须排在所有可能提前 Abort 的中间件（CORS 预检、限流、鉴权）之前，
+	// 保证预检与拒绝响应也能把请求号回写客户端；其 Header 在 c.Next() 之前写入。
 	r.Use(middleware.RequestID())
+	r.Use(middleware.CORS())
 	r.Use(middleware.ErrorHandler(deps.Log))
 	r.Use(middleware.RateLimit(deps.RDB, deps.Cfg.RateLimit))
 
