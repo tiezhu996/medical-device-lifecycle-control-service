@@ -17,10 +17,10 @@ import (
 
 // Deps 路由装配依赖。
 type Deps struct {
-	DB   *gorm.DB
-	Cfg  *config.Config
-	Log  *slog.Logger
-	RDB  *redis.Client
+	DB  *gorm.DB
+	Cfg *config.Config
+	Log *slog.Logger
+	RDB *redis.Client
 }
 
 // New 构建 Gin 引擎并注册全部路由。
@@ -29,8 +29,8 @@ func New(deps Deps) *gin.Engine {
 		gin.SetMode(gin.ReleaseMode)
 	}
 	r := gin.New()
-	r.Use(middleware.RequestID())
 	r.Use(middleware.CORS())
+	r.Use(middleware.RequestID())
 	r.Use(middleware.ErrorHandler(deps.Log))
 	r.Use(middleware.RateLimit(deps.RDB, deps.Cfg.RateLimit))
 

@@ -20,7 +20,7 @@ func OK(c *gin.Context, data any) {
 
 // Fail 返回业务错误响应。
 func Fail(c *gin.Context, httpStatus, code int, message string) {
-	c.AbortWithStatusJSON(httpStatus, Resp{Code: code, Message: message})
+	c.JSON(httpStatus, Resp{Code: code, Message: message})
 }
 
 // PageResult 分页返回结构。
