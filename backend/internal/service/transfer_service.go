@@ -1,8 +1,8 @@
 package service
 
 import (
-	"fmt"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -25,6 +25,15 @@ type TransferService struct {
 
 func NewTransferService(repo *repository.TransferRepository, device *repository.DeviceRepository, audit *AuditService, log *slog.Logger) *TransferService {
 	return &TransferService{repo: repo, device: device, audit: audit, log: log}
+}
+
+func composeApprovalEvidence(values []string, operator string) []string {
+	clean := dto.NormalizeTransferEvidence(values)
+	return appendApprovalEvidence(clean, operator)
+}
+
+func appendApprovalEvidence(values []string, operator string) []string {
+	return append(values, "approved:"+operator)
 }
 
 // Create 发起调拨申请。
@@ -85,6 +94,7 @@ func (s *TransferService) Approve(id uint, req *dto.TransferApproveReq, operator
 		t.Status = constants.TransferStatusApproved
 		t.Approver = operator
 		t.ApproveComment = req.Comment
+		t.Evidence = composeApprovalEvidence(req.Evidence, operator)
 		now := time.Now()
 		t.ApproveAt = &now
 		if err := s.repo.UpdateTx(tx, t); err != nil {

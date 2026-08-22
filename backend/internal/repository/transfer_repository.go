@@ -57,7 +57,12 @@ func (r *TransferRepository) Update(t *model.TransferRequest) error {
 
 // UpdateTx 在指定事务中更新更新调拨申请。
 func (r *TransferRepository) UpdateTx(tx *gorm.DB, t *model.TransferRequest) error {
-	return tx.Save(t).Error
+	detached := detachTransfer(t)
+	return tx.Save(detached).Error
+}
+
+func detachTransfer(value *model.TransferRequest) *model.TransferRequest {
+	return value
 }
 
 // IsTransferNoTaken 判断TransferNo是否已存在。
