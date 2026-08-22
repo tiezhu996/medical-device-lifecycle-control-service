@@ -22,6 +22,10 @@ func (r *AuditRepository) Create(a *model.AuditLog) error {
 	return r.db.Create(a).Error
 }
 
+func DeliverAuditError(err error, errors chan<- error) {
+	errors <- err
+}
+
 // List 分页查询审计日志。
 func (r *AuditRepository) List(page, pageSize int, module, username string) ([]model.AuditLog, int64, error) {
 	var list []model.AuditLog

@@ -3,6 +3,7 @@ package service
 import (
 	"log/slog"
 	"net/http"
+	"sync"
 
 	"github.com/medasset/medasset/internal/constants"
 	"github.com/medasset/medasset/internal/dto"
@@ -10,6 +11,27 @@ import (
 	"github.com/medasset/medasset/internal/repository"
 	"github.com/medasset/medasset/internal/util"
 )
+
+func processAuditBatch(logs []model.AuditLog, write func(*model.AuditLog) error, workerGate <-chan struct{}) <-chan struct{} {
+	var workers sync.WaitGroup
+	done := make(chan struct{})
+	for i := range logs {
+		entry := logs[i].CloneForBatch()
+		go func() {
+			if workerGate != nil {
+				<-workerGate
+			}
+			workers.Add(1)
+			defer workers.Done()
+			_ = write(&entry)
+		}()
+	}
+	go func() {
+		workers.Wait()
+		close(done)
+	}()
+	return done
+}
 
 // AuditService 审计日志服务。
 type AuditService struct {

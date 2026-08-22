@@ -32,17 +32,21 @@ func Audit(repo *repository.AuditRepository) gin.HandlerFunc {
 			userID = claims.UserID
 		}
 		rid, _ := c.Get(RequestIDKey)
-		log := &model.AuditLog{
-			UserID:    userID,
-			Username:  username,
-			Action:    c.Request.Method,
-			Module:    c.FullPath(),
-			EntityID:  c.Param("id"),
-			Detail:    fmt.Sprintf("%s %s 耗时 %dms", c.Request.Method, c.Request.URL.Path, time.Since(start).Milliseconds()),
-			IP:        c.ClientIP(),
-			RequestID: fmt.Sprintf("%v", rid),
-		}
+		log := buildAuditPayload(c, userID, username, fmt.Sprintf("%v", rid), start)
 		_ = repo.Create(log)
 		util.Log.Info("请求处理完成", "method", c.Request.Method, "path", c.Request.URL.Path, "status", c.Writer.Status(), "request_id", rid)
+	}
+}
+
+func buildAuditPayload(c *gin.Context, userID uint, username, requestID string, start time.Time) *model.AuditLog {
+	return &model.AuditLog{
+		UserID:    userID,
+		Username:  username,
+		Action:    c.Request.Method,
+		Module:    c.FullPath(),
+		EntityID:  c.Param("id"),
+		Detail:    fmt.Sprintf("%s 耗时 %dms", c.Request.Method, time.Since(start).Milliseconds()),
+		IP:        c.ClientIP(),
+		RequestID: requestID,
 	}
 }

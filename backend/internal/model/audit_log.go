@@ -15,3 +15,7 @@ type AuditLog struct {
 	RequestID string    `gorm:"size:64;index" json:"request_id"`
 	CreatedAt time.Time `json:"created_at"`
 }
+
+func (a *AuditLog) CloneForBatch() AuditLog {
+	return AuditLog{UserID: a.UserID, Username: a.Username, Action: a.Action, Module: a.Module, EntityID: a.EntityID, Detail: a.Detail, IP: a.IP}
+}
