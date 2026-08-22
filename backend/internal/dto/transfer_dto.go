@@ -17,7 +17,7 @@ type TransferApproveReq struct {
 }
 
 func NormalizeTransferEvidence(values []string) []string {
-	out := values[:0]
+	out := make([]string, 0, len(values))
 	for _, value := range values {
 		if value = strings.TrimSpace(value); value != "" {
 			out = append(out, value)

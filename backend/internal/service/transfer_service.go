@@ -33,7 +33,10 @@ func composeApprovalEvidence(values []string, operator string) []string {
 }
 
 func appendApprovalEvidence(values []string, operator string) []string {
-	return append(values, "approved:"+operator)
+	out := make([]string, 0, len(values)+1)
+	out = append(out, values...)
+	out = append(out, "approved:"+operator)
+	return out
 }
 
 // Create 发起调拨申请。

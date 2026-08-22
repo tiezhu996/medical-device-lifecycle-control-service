@@ -24,5 +24,7 @@ type TransferRequest struct {
 }
 
 func CopyTransferEvidence(values []string) []string {
-	return values
+	cp := make([]string, len(values))
+	copy(cp, values)
+	return cp
 }

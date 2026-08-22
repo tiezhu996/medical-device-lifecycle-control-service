@@ -62,7 +62,12 @@ func (r *TransferRepository) UpdateTx(tx *gorm.DB, t *model.TransferRequest) err
 }
 
 func detachTransfer(value *model.TransferRequest) *model.TransferRequest {
-	return value
+	if value == nil {
+		return nil
+	}
+	cp := *value
+	cp.Evidence = model.CopyTransferEvidence(value.Evidence)
+	return &cp
 }
 
 // IsTransferNoTaken 判断TransferNo是否已存在。
