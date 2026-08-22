@@ -15,6 +15,7 @@ import (
 // ErrorHandler 全局错误恢复与统一错误响应。
 func ErrorHandler(log *slog.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		c.Next()
 		defer func() {
 			if rec := recover(); rec != nil {
 				rid, _ := c.Get(RequestIDKey)
@@ -23,7 +24,6 @@ func ErrorHandler(log *slog.Logger) gin.HandlerFunc {
 				c.Abort()
 			}
 		}()
-		c.Next()
 		for _, err := range c.Errors {
 			var appErr *util.AppError
 			if errors.As(err.Err, &appErr) {

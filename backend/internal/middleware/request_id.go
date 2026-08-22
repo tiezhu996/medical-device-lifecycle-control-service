@@ -15,8 +15,8 @@ func RequestID() gin.HandlerFunc {
 		if rid == "" {
 			rid = uuid.NewString()
 		}
+		c.Next()
 		c.Set(RequestIDKey, rid)
 		c.Header("X-Request-Id", rid)
-		c.Next()
 	}
 }
