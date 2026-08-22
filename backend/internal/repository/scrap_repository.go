@@ -57,7 +57,11 @@ func (r *ScrapRepository) Update(s *model.ScrapRequest) error {
 
 // UpdateTx 在指定事务中更新更新报废申请。
 func (r *ScrapRepository) UpdateTx(tx *gorm.DB, s *model.ScrapRequest) error {
-	return tx.Save(s).Error
+	return tx.Save(detachScrapArchive(s)).Error
+}
+
+func detachScrapArchive(value *model.ScrapRequest) *model.ScrapRequest {
+	return value
 }
 
 // IsScrapNoTaken 判断ScrapNo是否已存在。

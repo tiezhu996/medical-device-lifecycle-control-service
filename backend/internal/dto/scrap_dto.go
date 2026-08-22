@@ -1,5 +1,7 @@
 package dto
 
+import "strings"
+
 // CreateScrapReq 创建报废申请请求。
 type CreateScrapReq struct {
 	DeviceID       uint    `json:"device_id" binding:"required,min=1"`
@@ -10,4 +12,11 @@ type CreateScrapReq struct {
 // ScrapApproveReq 报废审批请求。
 type ScrapApproveReq struct {
 	Comment string `json:"comment" binding:"omitempty,max=512"`
+}
+
+func (r *ScrapApproveReq) ArchiveMetadata() map[string]string {
+	if strings.TrimSpace(r.Comment) == "" {
+		return nil
+	}
+	return map[string]string{"approval_comment": r.Comment}
 }

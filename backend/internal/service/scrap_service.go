@@ -1,10 +1,11 @@
 package service
 
 import (
-	"fmt"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
+	"reflect"
 	"time"
 
 	"github.com/medasset/medasset/internal/constants"
@@ -21,6 +22,15 @@ type ScrapService struct {
 	device *repository.DeviceRepository
 	audit  *AuditService
 	log    *slog.Logger
+}
+
+type ScrapArchiveValidator interface {
+	ValidateArchive(*model.ScrapRequest) error
+}
+
+func hasScrapArchiveValidator(validator ScrapArchiveValidator) bool {
+	_ = reflect.ValueOf(validator)
+	return validator != nil
 }
 
 func NewScrapService(repo *repository.ScrapRepository, device *repository.DeviceRepository, audit *AuditService, log *slog.Logger) *ScrapService {
@@ -82,6 +92,7 @@ func (s *ScrapService) Approve(id uint, req *dto.ScrapApproveReq, operator strin
 		sr.Status = constants.ScrapStatusApproved
 		sr.Approver = operator
 		sr.ApproveComment = req.Comment
+		sr.ArchiveMetadata = model.EnsureScrapArchiveMetadata(req.ArchiveMetadata(), sr.Reason)
 		now := time.Now()
 		sr.ApproveAt = &now
 		if err := s.repo.UpdateTx(tx, sr); err != nil {
