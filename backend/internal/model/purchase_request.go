@@ -33,3 +33,17 @@ type PurchaseRequest struct {
 	CreatedAt          time.Time  `json:"created_at"`
 	UpdatedAt          time.Time  `json:"updated_at"`
 }
+
+func (p *PurchaseRequest) CanAccept() bool {
+	return p.Status != "rejected" && p.DeviceID == 0
+}
+
+func (p *PurchaseRequest) ApplyAcceptance(person string, date *time.Time, parts, certificate, registration string, deviceID uint) {
+	p.Status = "accepted"
+	p.AcceptancePerson = person
+	p.AcceptanceDate = date
+	p.PartsList = parts
+	p.CertificateNo = certificate
+	p.RegistrationNo = registration
+	p.DeviceID = deviceID
+}

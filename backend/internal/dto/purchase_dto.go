@@ -1,6 +1,10 @@
 package dto
 
-import "time"
+import (
+	"errors"
+	"strings"
+	"time"
+)
 
 // CreatePurchaseReq 创建采购申请请求。
 type CreatePurchaseReq struct {
@@ -21,15 +25,22 @@ type ApproveReq struct {
 
 // AcceptReq 验收登记请求。
 type AcceptReq struct {
-	AcceptancePerson string     `json:"acceptance_person" binding:"required,max=64"`
-	AcceptanceDate   *time.Time `json:"acceptance_date"`
-	PartsList        string     `json:"parts_list" binding:"omitempty,max=1024"`
-	CertificateNo    string     `json:"certificate_no" binding:"omitempty,max=128"`
-	RegistrationNo   string     `json:"registration_no" binding:"omitempty,max=128"`
-	AssetCode        string     `json:"asset_code" binding:"required,max=64"`
-	Category         string     `json:"category" binding:"omitempty,max=64"`
-	ResponsiblePerson string    `json:"responsible_person" binding:"omitempty,max=64"`
-	Location         string     `json:"location" binding:"omitempty,max=128"`
-	WarrantyMonths   int        `json:"warranty_months" binding:"omitempty,min=0"`
-	CalibrationRequired bool    `json:"calibration_required"`
+	AcceptancePerson    string     `json:"acceptance_person" binding:"required,max=64"`
+	AcceptanceDate      *time.Time `json:"acceptance_date"`
+	PartsList           string     `json:"parts_list" binding:"omitempty,max=1024"`
+	CertificateNo       string     `json:"certificate_no" binding:"omitempty,max=128"`
+	RegistrationNo      string     `json:"registration_no" binding:"omitempty,max=128"`
+	AssetCode           string     `json:"asset_code" binding:"required,max=64"`
+	Category            string     `json:"category" binding:"omitempty,max=64"`
+	ResponsiblePerson   string     `json:"responsible_person" binding:"omitempty,max=64"`
+	Location            string     `json:"location" binding:"omitempty,max=128"`
+	WarrantyMonths      int        `json:"warranty_months" binding:"omitempty,min=0"`
+	CalibrationRequired bool       `json:"calibration_required"`
+}
+
+func (r *AcceptReq) Validate() error {
+	if strings.TrimSpace(r.AssetCode) == "" {
+		return errors.New("asset code is required")
+	}
+	return nil
 }

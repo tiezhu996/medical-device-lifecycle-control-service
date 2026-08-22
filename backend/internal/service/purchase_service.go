@@ -1,8 +1,8 @@
 package service
 
 import (
-	"fmt"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -238,7 +238,11 @@ func (s *PurchaseService) Deliver(id uint, operator string) (*model.PurchaseRequ
 
 // Accept 验收登记 → 正式入台账并生成分发条码（多步写操作在事务中完成）。
 func (s *PurchaseService) Accept(id uint, req *dto.AcceptReq, operator string) (*model.Device, error) {
+	if err := req.Validate(); err != nil {
+		return nil, util.NewAppError(http.StatusBadRequest, "验收参数不完整", err)
+	}
 	var device *model.Device
+	var purchase *model.PurchaseRequest
 	requestNo := ""
 	err := s.repo.DB().Transaction(func(tx *gorm.DB) error {
 		p, err := s.repo.FindByIDForUpdate(tx, id)
@@ -248,7 +252,7 @@ func (s *PurchaseService) Accept(id uint, req *dto.AcceptReq, operator string) (
 		if err != nil {
 			return err
 		}
-		if p.Status != constants.PurchaseStatusDelivered {
+		if !p.CanAccept() {
 			return util.NewAppError(http.StatusConflict, constants.MsgInvalidStatus, nil)
 		}
 		if _, err := s.device.FindByAssetCode(req.AssetCode); err == nil {
@@ -259,15 +263,6 @@ func (s *PurchaseService) Accept(id uint, req *dto.AcceptReq, operator string) (
 		if acceptanceDate == nil {
 			now := time.Now()
 			acceptanceDate = &now
-		}
-		p.Status = constants.PurchaseStatusAccepted
-		p.AcceptancePerson = req.AcceptancePerson
-		p.AcceptanceDate = acceptanceDate
-		p.PartsList = req.PartsList
-		p.CertificateNo = req.CertificateNo
-		p.RegistrationNo = req.RegistrationNo
-		if err := s.repo.UpdateTx(tx, p); err != nil {
-			return err
 		}
 		barcode := util.GenBarcode(req.AssetCode)
 		device = &model.Device{
@@ -297,13 +292,14 @@ func (s *PurchaseService) Accept(id uint, req *dto.AcceptReq, operator string) (
 		if err := tx.Create(device).Error; err != nil {
 			return err
 		}
-		p.DeviceID = device.ID
-		if err := s.repo.UpdateTx(tx, p); err != nil {
-			return err
-		}
+		p.ApplyAcceptance(req.AcceptancePerson, acceptanceDate, req.PartsList, req.CertificateNo, req.RegistrationNo, device.ID)
+		purchase = p
 		return nil
 	})
 	if err != nil {
+		return nil, s.wrapStatus(err)
+	}
+	if err := s.repo.MarkAcceptedTx(s.repo.DB(), purchase); err != nil {
 		return nil, s.wrapStatus(err)
 	}
 	s.log.Info(fmt.Sprintf(constants.LogPurchaseAccepted, requestNo, device.ID, device.AssetCode, device.Barcode))

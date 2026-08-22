@@ -14,6 +14,8 @@ type PurchaseRepository struct {
 	db *gorm.DB
 }
 
+var ErrPurchaseStateConflict = errors.New("purchase state conflict")
+
 func NewPurchaseRepository(db *gorm.DB) *PurchaseRepository {
 	return &PurchaseRepository{db: db}
 }
@@ -82,6 +84,27 @@ func (r *PurchaseRepository) UpdateStatusTx(tx *gorm.DB, id uint, status string)
 	}
 	if res.RowsAffected == 0 {
 		return ErrNotFound
+	}
+	return nil
+}
+
+func (r *PurchaseRepository) MarkAcceptedTx(tx *gorm.DB, p *model.PurchaseRequest) error {
+	res := tx.Model(&model.PurchaseRequest{}).
+		Where("id = ?", p.ID).
+		Updates(map[string]any{
+			"status":            p.Status,
+			"acceptance_person": p.AcceptancePerson,
+			"acceptance_date":   p.AcceptanceDate,
+			"parts_list":        p.PartsList,
+			"certificate_no":    p.CertificateNo,
+			"registration_no":   p.RegistrationNo,
+			"device_id":         p.DeviceID,
+		})
+	if res.Error != nil {
+		return fmt.Errorf("mark purchase accepted: %w", res.Error)
+	}
+	if res.RowsAffected != 1 {
+		return ErrPurchaseStateConflict
 	}
 	return nil
 }
