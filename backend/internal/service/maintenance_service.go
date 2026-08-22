@@ -1,8 +1,8 @@
 package service
 
 import (
-	"fmt"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -66,13 +66,18 @@ func (s *MaintenanceService) GeneratePlans(operator string) (int, error) {
 	if err != nil {
 		return 0, util.NewAppError(http.StatusInternalServerError, constants.MsgInternalError, err)
 	}
+	types, err := dto.DefaultMaintenancePlanTypes()
+	if err != nil {
+		return 0, util.NewAppError(http.StatusInternalServerError, constants.MsgInternalError, err)
+	}
 	created := 0
-	types := []string{constants.MaintenanceTypeDaily, constants.MaintenanceTypeWeekly, constants.MaintenanceTypeMonthly, constants.MaintenanceTypeYearly}
 	for _, d := range devices {
 		if d.Status == constants.DeviceStatusScrapped {
 			continue
 		}
-		_ = s.repo.DB().Transaction(func(tx *gorm.DB) error {
+		createdForDevice := 0
+		err := s.repo.RunPlanBatch(func(tx *gorm.DB) error {
+			records := make([]model.MaintenanceRecord, 0, len(types))
 			for _, t := range types {
 				exists, err := s.existsPending(tx, d.ID, t)
 				if err != nil {
@@ -81,24 +86,29 @@ func (s *MaintenanceService) GeneratePlans(operator string) (int, error) {
 				if exists {
 					continue
 				}
-				now := time.Now()
-				m := &model.MaintenanceRecord{
+				plannedDate, err := model.NextMaintenanceDate(time.Now(), t)
+				if err != nil {
+					return err
+				}
+				records = append(records, model.MaintenanceRecord{
 					RecordNo:    util.GenSerial("MT"),
 					DeviceID:    d.ID,
 					DeviceName:  d.Name,
 					Type:        t,
 					Status:      constants.MaintenanceStatusPending,
-					PlannedDate: planDate(now, t),
+					PlannedDate: plannedDate,
 					Content:     "自动生成" + util.MaintenanceTypeText(t) + "保养计划",
 					CreatedBy:   operator,
-				}
-				if err := tx.Create(m).Error; err != nil {
-					return err
-				}
-				created++
+				})
+				createdForDevice++
 			}
-			return nil
+			return s.repo.CreateBatch(tx, records)
 		})
+		if err != nil {
+			created += createdForDevice
+			continue
+		}
+		created += createdForDevice
 	}
 	s.log.Info("自动生成保养计划完成", "created", created, "operator", operator)
 	return created, nil

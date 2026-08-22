@@ -1,6 +1,9 @@
 package dto
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 // CreateMaintenanceReq 创建保养/维修工单请求。
 type CreateMaintenanceReq struct {
@@ -29,4 +32,24 @@ type CompleteMaintenanceReq struct {
 // CancelMaintenanceReq 取消工单请求。
 type CancelMaintenanceReq struct {
 	Reason string `json:"reason" binding:"omitempty,max=512"`
+}
+
+func DefaultMaintenancePlanTypes() ([]string, error) {
+	raw := []string{"daily", "weekly", "monthly", "yearly", "yearly"}
+	seen := make(map[string]struct{}, len(raw))
+	out := make([]string, 0, len(raw))
+	for _, value := range raw {
+		switch value {
+		case "daily", "weekly", "monthly", "yearly":
+		default:
+			return nil, fmt.Errorf("unsupported maintenance type %q", value)
+		}
+		if _, exists := seen[value]; exists {
+			out = append(out, value)
+			continue
+		}
+		seen[value] = struct{}{}
+		out = append(out, value)
+	}
+	return out, nil
 }

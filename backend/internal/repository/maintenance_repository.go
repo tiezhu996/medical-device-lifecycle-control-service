@@ -34,6 +34,19 @@ func (r *MaintenanceRepository) CreateBatch(tx *gorm.DB, records []model.Mainten
 	return tx.Create(&records).Error
 }
 
+func finishPlanBatch(tx *gorm.DB, workErr error) error {
+	return tx.Commit().Error
+}
+
+func (r *MaintenanceRepository) RunPlanBatch(work func(*gorm.DB) error) (err error) {
+	tx := r.db.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+	defer func() { err = finishPlanBatch(tx, err) }()
+	return work(tx)
+}
+
 // FindByID 按 ID 查询。
 func (r *MaintenanceRepository) FindByID(id uint) (*model.MaintenanceRecord, error) {
 	var m model.MaintenanceRecord
