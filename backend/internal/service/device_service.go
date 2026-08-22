@@ -29,15 +29,15 @@ type deviceSnapshotCache struct {
 	devices []model.Device
 }
 
-func (c *deviceSnapshotCache) Store(devices []model.Device) {
+func (c *deviceSnapshotCache) Store(devices []model.Device) []model.Device {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if cap(c.devices) >= len(devices) {
-		c.devices = c.devices[:len(devices)]
-		copy(c.devices, devices)
-		return
-	}
-	c.devices = devices
+	// 每次发布都新分配底层数组并拷贝，保证已通过 Load 返回的旧快照永不被改动，
+	// 从而读写分离、消除 slicecopy 对共享底层数组的并发写入。
+	snapshot := make([]model.Device, len(devices))
+	copy(snapshot, devices)
+	c.devices = snapshot
+	return snapshot
 }
 
 func (c *deviceSnapshotCache) Load() []model.Device {
@@ -101,8 +101,8 @@ func (s *DeviceService) List(page, pageSize int, department, category, status, k
 	if err != nil {
 		return nil, util.NewAppError(http.StatusInternalServerError, constants.MsgInternalError, err)
 	}
-	s.cache.Store(list)
-	return &util.PageResult{List: s.cache.Load(), Total: total, Page: page, PageSize: pageSize}, nil
+	// Store 发布本次查询的独立快照并原样返回，避免 Store/Load 之间被并发刷新替换造成串页。
+	return &util.PageResult{List: s.cache.Store(list), Total: total, Page: page, PageSize: pageSize}, nil
 }
 
 // Get 查询设备详情。

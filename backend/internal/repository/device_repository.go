@@ -10,9 +10,15 @@ import (
 	"gorm.io/gorm/clause"
 )
 
+// SnapshotDeviceList 返回按 ID 倒序的独立快照：新分配底层数组并深拷贝每个设备，
+// 既不改动入参顺序，也不与入参共享指针字段。
 func SnapshotDeviceList(devices []model.Device) []model.Device {
-	sort.SliceStable(devices, func(i, j int) bool { return devices[i].ID > devices[j].ID })
-	return devices
+	snapshot := make([]model.Device, len(devices))
+	for i := range devices {
+		snapshot[i] = model.CloneDevice(&devices[i])
+	}
+	sort.SliceStable(snapshot, func(i, j int) bool { return snapshot[i].ID > snapshot[j].ID })
+	return snapshot
 }
 
 // DeviceRepository 设备台账仓储。

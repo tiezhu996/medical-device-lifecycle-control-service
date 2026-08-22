@@ -30,6 +30,20 @@ type Device struct {
 	UpdatedAt           time.Time  `json:"updated_at"`
 }
 
+// CloneDevice 返回设备的深拷贝：指针字段独立分配，确保快照与源对象互不影响。
 func CloneDevice(device *Device) Device {
-	return *device
+	clone := *device
+	if device.PurchaseDate != nil {
+		v := *device.PurchaseDate
+		clone.PurchaseDate = &v
+	}
+	if device.WarrantyExpiry != nil {
+		v := *device.WarrantyExpiry
+		clone.WarrantyExpiry = &v
+	}
+	if device.LastMaintenanceAt != nil {
+		v := *device.LastMaintenanceAt
+		clone.LastMaintenanceAt = &v
+	}
+	return clone
 }

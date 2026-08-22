@@ -54,5 +54,5 @@ type DeviceDetail struct {
 }
 
 func NewDeviceDetail(device *model.Device, warrantyExpired bool) DeviceDetail {
-	return DeviceDetail{Device: *device, WarrantyExpired: warrantyExpired}
+	return DeviceDetail{Device: model.CloneDevice(device), WarrantyExpired: warrantyExpired}
 }
